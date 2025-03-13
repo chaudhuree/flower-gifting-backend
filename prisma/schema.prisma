@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String    @unique
+  password        String
+  role            RoleEnum  @default(USER)
+  resetOTP        String?
+  otpExpiration   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  reviews         Review[]  // Relation to reviews
+
+  @@map("users")
+}
+
+enum RoleEnum {
+  ADMIN
+  USER
+}
+
+model Product {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  details     String
+  description String
+  price       Float
+  rating      Float     @default(0)
+  category    String
+  occasions   String[]
+  flowerType  String?
+  images      String[]
+  colors      String[]
+  sizes       String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  reviews     Review[]  // Relation to reviews
+
+  @@map("products")
+}
+
+model Review {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  rating      Float
+  comment     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productId   String    @db.ObjectId
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}
+
+model GiftCard {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  image       String
+  description String?
+  price       Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("giftcards")
+}
