@@ -9,6 +9,9 @@ const fileController = {
       throw new AppError('No file uploaded', 400);
     }
 
+    // Log file size for debugging
+    console.log(`Processing file: ${req.file.originalname}, Size: ${(req.file.size / (1024 * 1024)).toFixed(2)}MB`);
+
     const fileUrl = await FileUpload.uploadFile(req.file);
 
     sendResponse(res, {
@@ -23,6 +26,9 @@ const fileController = {
     if (!req.file) {
       throw new AppError('No file uploaded', 400);
     }
+
+    // Log file size for debugging
+    console.log(`Processing file with QR: ${req.file.originalname}, Size: ${(req.file.size / (1024 * 1024)).toFixed(2)}MB`);
 
     const result = await FileUpload.uploadFileWithQR(req.file);
 
