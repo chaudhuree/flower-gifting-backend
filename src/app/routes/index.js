@@ -3,6 +3,7 @@ const router = express.Router();
 const userRoutes = require('../modules/user/user.routes');
 const productRoutes = require('../modules/product/product.routes');
 const giftCardRoutes = require('../modules/giftcard/giftcard.routes');
+const fileRoutes = require('../modules/file/file.routes');
 
 const modulesRoutes = [
     {
@@ -16,6 +17,10 @@ const modulesRoutes = [
     {
         path: '/gift-cards',
         route: giftCardRoutes
+    },
+    {
+        path: '/files',
+        route: fileRoutes
     }
 ]
 
