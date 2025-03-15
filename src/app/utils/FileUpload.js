@@ -15,6 +15,25 @@ const s3Client = new S3Client({
   }
 });
 
+
+/**
+ * NODE_ENV=development
+PORT=5000
+DATABASE_URL= mongodb+srv://chaudhuree:chaudhuree@cluster0.zbqtwmy.mongodb.net/flower-gift?retryWrites=true&w=majority&appName=Cluster0
+JWT_SECRET= "secret"
+JWT_EXPIRES_IN= "7d"
+# Stripe
+STRIPE_SECRET_KEY=sk_test_51Qp5LOPs8mVJ1TARHLe2BwHxb4lP9rDLqJqKbZzdSNXsXsz1UjqpwlwCtY8G419upYMaCdn8b8Dgr3BRllDmOAa1008KFuRdrT
+STRIPE_PUBLISHABLE_KEY=pk_test_51Qp5LOPs8mVJ1TARXPGnFhtXqSGxyInN2qfw2Suc8Uc9UT4iDcYC90XHcCWjViiqsIidXKA1sSoHEE68SdBXvR8000d6SXeuJa
+
+# space
+
+DO_SPACE_ENDPOINT="https://nyc3.digitaloceanspaces.com"
+DO_SPACE_ACCESS_KEY="DO002RGDJ947DJHJ9WDT"
+DO_SPACE_SECRET_KEY="e5+/pko6Ojar51Hb8ojUKfq2HtXy+tnGKOfs3rIcEfo"
+DO_SPACE_BUCKET="smtech-space"
+ * 
+ */
 /**
  * Format error details for better readability
  * @param {Error} error - The error object
