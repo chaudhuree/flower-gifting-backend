@@ -3,6 +3,12 @@ const AppError = require('../../errors/AppError');
 const bcrypt = require('bcryptjs');
 const { createToken } = require('../../utils/jwt.utils');
 const generateOTP = require('../../utils/generateOTP');
+const stripe = require("stripe")(
+  "sk_test_51Qp5LOPs8mVJ1TARHLe2BwHxb4lP9rDLqJqKbZzdSNXsXsz1UjqpwlwCtY8G419upYMaCdn8b8Dgr3BRllDmOAa1008KFuRdrT",
+  {
+    apiVersion: "2023-10-16", // Or the latest version
+  }
+);
 
 const createUser = async (userData) => {
   const existingUser = await prisma.user.findUnique({
@@ -30,8 +36,31 @@ const createUser = async (userData) => {
       updatedAt: true,
     },
   });
+  // create stripe customer
+  let customer;
+  const existingCustomers = await stripe.customers.list({ email: result.email });
+  if (existingCustomers.data.length === 0) {
+    customer = await stripe.customers.create({
+      email: result.email,
+    });
+  } else {
+    customer = existingCustomers.data[0];
+  }
 
-  return result;
+  await prisma.user.update({
+    where: {
+      id: result.id,
+    },
+    data: {
+      stripeCustomerId: customer.id,
+    },
+  });
+
+
+  return {
+   ...result,
+   stripeCustomerId: customer.id,
+  } ;
 };
 
 const loginUser = async (loginData) => {
@@ -61,6 +90,7 @@ const loginUser = async (loginData) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      stripeCustomerId: user.stripeCustomerId,
     },
   };
 };
