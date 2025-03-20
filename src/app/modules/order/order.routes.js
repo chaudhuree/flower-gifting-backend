@@ -19,4 +19,10 @@ router.get('/', auth(RoleEnum.ADMIN), OrderController.getAllOrders);
 router.patch('/:orderId/status', auth(RoleEnum.ADMIN), OrderController.updateOrderStatus);
 router.get('/stats/dashboard', auth(RoleEnum.ADMIN), OrderController.getOrderStats);
 
+router.post(
+  '/orders/:orderId/payment',
+  auth(), // Ensure user is authenticated
+  OrderController.processPayment
+);
+
 module.exports = router;

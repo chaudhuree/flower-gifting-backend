@@ -8,6 +8,7 @@ const stripe = require("stripe")(
     apiVersion: "2023-10-16",
   }
 );
+const { ORDER_STATUS, PAYMENT_STATUS } = require('../../constants/order.constants');
 
 /**
  * Create a new order
@@ -123,76 +124,78 @@ const createOrder = async (orderData, userId = null) => {
 /**
  * Process payment for an order
  */
-const processPayment = async (orderId, paymentData) => {
-  const { paymentMethodId } = paymentData;
-
-  // Find the order
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      user: true
-    }
-  });
-
-  if (!order) {
-    throw new AppError('Order not found', 404);
-  }
-
-  if (order.paymentStatus === 'PAID') {
-    throw new AppError('Order has already been paid', 400);
-  }
-
+const processPayment = async (orderId, paymentMethodId) => {
   try {
-    let customerId;
-    
-    // Get customer ID from user or create a new customer
-    if (order.user && order.user.stripeCustomerId) {
-      customerId = order.user.stripeCustomerId;
-    } else {
-      // Create a new customer for guest checkout
-      const customer = await stripe.customers.create({
-        email: order.senderEmail,
-        name: order.senderName
-      });
-      customerId = customer.id;
-    }
-
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(order.totalPrice * 100), // Convert to cents
-      currency: 'usd',
-      customer: customerId,
-      payment_method: paymentMethodId,
-      confirm: true,
-      description: `Order #${order.id}`,
-      metadata: {
-        orderId: order.id
-      }
-    });
-
-    // Update order with payment information
-    const updatedOrder = await prisma.order.update({
+    // 1. Get order details
+    const order = await prisma.order.findUnique({
       where: { id: orderId },
-      data: {
-        paymentStatus: 'PAID',
-        paymentMethod: 'STRIPE',
-        paymentId: paymentIntent.id,
-        status: 'PROCESSING'
-      },
       include: {
         orderItems: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
-        giftCard: true
-      }
+        giftCard: true,
+      },
     });
 
-    return updatedOrder;
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // 2. Calculate total amount
+    let totalAmount = order.orderItems.reduce((sum, item) => {
+      return sum + (item.quantity * item.product.price);
+    }, 0);
+
+    // Apply gift card discount if exists
+    if (order.giftCard) {
+      totalAmount -= order.giftCard.amount;
+    }
+
+    // Add delivery charge if applicable
+    if (order.deliveryCharge) {
+      totalAmount += order.deliveryCharge;
+    }
+
+    // 3. Process payment with Stripe
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(totalAmount * 100), // Convert to cents
+      currency: 'usd',
+      payment_method: paymentMethodId,
+      confirm: true,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never'
+      },
+    });
+
+    if (paymentIntent.status === 'succeeded') {
+      // 4. Update order status
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: 'PROCESSING',
+          paymentStatus: 'COMPLETED',
+          paymentId: paymentIntent.id,
+          totalPrice: totalAmount,
+          paymentMethod: 'CARD',
+          updatedAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Payment successful',
+        orderId: order.id,
+        amount: totalAmount,
+        paymentIntentId: paymentIntent.id,
+      };
+    } else {
+      throw new Error('Payment failed');
+    }
   } catch (error) {
-    console.error('Payment processing error:', error);
-    throw new AppError(`Payment failed: ${error.message}`, 400);
+    throw new Error(`Payment failed: ${error.message}`);
   }
 };
 

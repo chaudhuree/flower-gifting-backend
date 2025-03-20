@@ -19,12 +19,16 @@ const createOrder = catchAsync(async (req, res) => {
 
 const processPayment = catchAsync(async (req, res) => {
   const { orderId } = req.params;
-  
-  const result = await OrderService.processPayment(orderId, req.body);
-  
-  sendResponse(res, {
+  const { paymentMethodId } = req.body;
+
+  if (!orderId || !paymentMethodId) {
+    throw new Error('Order ID and payment method ID are required');
+  }
+
+  const result = await OrderService.processPayment(orderId, paymentMethodId);
+
+  res.json({
     success: true,
-    statusCode: 200,
     message: 'Payment processed successfully',
     data: result,
   });

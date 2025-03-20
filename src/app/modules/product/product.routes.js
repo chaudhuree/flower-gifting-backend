@@ -21,6 +21,8 @@ const router = express.Router();
  * @query {string} search - Search in name and description
  */
 router.get('/', ProductController.getAllProducts);
+// filter url: /products?category=wedding&occasion=wedding&flowerType=roses&minPrice=100&maxPrice=1000&search=flower
+// pagination url: /products?page=2&limit=10
 router.get('/:id', ProductController.getProductById);
 router.get('/:id/reviews', ProductController.getProductReviews);
 router.get('/:id/related', ProductController.getRelatedProducts);
