@@ -43,13 +43,23 @@ const getAllProducts = async (query) => {
     whereConditions.flowerType = flowerType;
   }
   
+  // Fix price filtering logic
   if (minPrice !== undefined || maxPrice !== undefined) {
     whereConditions.price = {};
-    if (minPrice !== undefined) {
+    
+    // Only add gte if minPrice is a valid number
+    if (minPrice !== undefined && !isNaN(parseFloat(minPrice))) {
       whereConditions.price.gte = parseFloat(minPrice);
     }
-    if (maxPrice !== undefined) {
+    
+    // Only add lte if maxPrice is a valid number
+    if (maxPrice !== undefined && !isNaN(parseFloat(maxPrice))) {
       whereConditions.price.lte = parseFloat(maxPrice);
+    }
+    
+    // Remove price condition if both values are invalid
+    if (Object.keys(whereConditions.price).length === 0) {
+      delete whereConditions.price;
     }
   }
   
