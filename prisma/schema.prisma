@@ -7,24 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  name            String
-  email           String    @unique
-  password        String
-  role            RoleEnum  @default(USER)
-  resetOTP        String?
-  otpExpiration   DateTime?
-  stripeCustomerId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  reviews         Review[]  // Relation to reviews
-  orders          Order[]   // Relation to orders
-
-  @@map("users")
-}
-
 enum RoleEnum {
   ADMIN
   USER
@@ -35,6 +17,71 @@ enum OrderStatus {
   PROCESSING
   DELIVERED
   CANCELLED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  SUBSCRIBED
+  PAUSED
+  CANCELLED
+}
+
+model User {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String    @unique
+  password        String
+  role            RoleEnum  @default(USER)
+  resetOTP        String?
+  otpExpiration   DateTime?
+  stripeCustomerId String?
+  stripePaymentMethodId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  reviews         Review[]        // Relation to reviews
+  orders          Order[]         // Relation to orders
+  subscriptions   Subscription[]  // New relation to subscriptions
+
+  @@map("users")
+}
+
+model Package {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  image           String
+  description     String?
+  stripeProductId String    @unique
+  basePrice       Float
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  subscriptions   Subscription[]
+
+  @@map("packages")
+}
+
+model Subscription {
+  id                  String            @id @default(auto()) @map("_id") @db.ObjectId
+  status              SubscriptionStatus @default(PENDING)
+  stripeSubscriptionId String           @unique
+  stripePriceId       String
+  deliveryLocation    String
+  anonymous           Boolean           @default(false)
+  nextDeliveryDate    DateTime
+  frequency           String            // weekly, biweekly, monthly, yearly
+  
+  // Relations
+  userId              String           @db.ObjectId
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  packageId           String           @db.ObjectId
+  package             Package          @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@map("subscriptions")
 }
 
 model Product {
@@ -53,8 +100,8 @@ model Product {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
-  reviews     Review[]  // Relation to reviews
-  orderItems  OrderItem[]  // Relation to order items
+  reviews     Review[]      // Relation to reviews
+  orderItems  OrderItem[]   // Relation to order items
 
   @@map("products")
 }
@@ -90,7 +137,6 @@ model GiftCard {
   @@map("giftcards")
 }
 
-// Model for order items (products in an order)
 model OrderItem {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   quantity    Int       @default(1)
@@ -134,7 +180,7 @@ model Order {
   paymentStatus   String?
   paymentId       String?
 
-  // Anonimous order
+  // Anonymous order
   annonimous      Boolean     @default(false)
   
   // Relations
@@ -149,4 +195,4 @@ model Order {
   orderItems      OrderItem[] // Relation to order items
 
   @@map("orders")
-}
+} 
