@@ -145,18 +145,20 @@ const processPayment = async (orderId, paymentMethodId) => {
 
     // 2. Calculate total amount
     let totalAmount = order.orderItems.reduce((sum, item) => {
-      return sum + (item.quantity * item.product.price);
+      const itemPrice = Number(item.product.price) || 0;
+      const quantity = Number(item.quantity) || 0;
+      return sum + (quantity * itemPrice);
     }, 0);
 
     // Apply gift card discount if exists
-    if (order.giftCard) {
-      totalAmount -= order.giftCard.amount;
-    }
+    // if (order.giftCard) {
+    //   totalAmount -= order.giftCard.amount;
+    // }
 
     // Add delivery charge if applicable
-    if (order.deliveryCharge) {
-      totalAmount += order.deliveryCharge;
-    }
+      // if (order.deliveryCharge) {
+      //   totalAmount += order.deliveryCharge;
+      // }
 
     // 3. Process payment with Stripe
     const paymentIntent = await stripe.paymentIntents.create({
