@@ -1,10 +1,6 @@
 const express = require('express');
-const auth = require('../../middlewares/auth');
-const { 
-  createPackage,
-  getPackages,
-  getPackageById
-} = require('./package.controller');
+const auth = require('../middlewares/auth');
+const { createPackage, getPackages } = require('../modules/package/package.controller');
 
 const router = express.Router();
 
@@ -17,11 +13,6 @@ router.post(
 router.get(
   '/',
   getPackages
-);
-
-router.get(
-  '/:id',
-  getPackageById
 );
 
 module.exports = router; 

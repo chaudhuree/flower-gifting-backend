@@ -21,9 +21,10 @@ enum OrderStatus {
 
 enum SubscriptionStatus {
   PENDING
-  SUBSCRIBED
+  ACTIVE
   PAUSED
   CANCELLED
+  PAYMENT_FAILED
 }
 
 model User {
@@ -68,8 +69,27 @@ model Subscription {
   stripePriceId       String
   deliveryLocation    String
   anonymous           Boolean           @default(false)
-  nextDeliveryDate    DateTime
+  
+  // New receiver information
+  receiverName        String
+  receiverPhone       String
+  
+  // Delivery scheduling
+  firstDeliveryDate   DateTime
+  nextDeliveryDate    DateTime?        // Made optional for cancelled/paused states
+  
+  // Payment tracking
+  nextPaymentDate     DateTime?        // Made optional for cancelled state
+  paymentFailureCount Int              @default(0)
+  lastPaymentStatus   String?          // 'succeeded', 'failed', 'invalid'
+  lastPaymentError    String?          // Store error message from Stripe
+  
+  // Subscription details
   frequency           String            // weekly, biweekly, monthly, yearly
+  currentPeriodStart  DateTime?         // Track subscription period
+  currentPeriodEnd    DateTime?         // Track subscription period
+  canceledAt          DateTime?         // When subscription was cancelled
+  pausedAt            DateTime?         // When subscription was paused
   
   // Relations
   userId              String           @db.ObjectId
@@ -83,7 +103,6 @@ model Subscription {
 
   @@map("subscriptions")
 }
-
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   name        String

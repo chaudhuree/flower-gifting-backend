@@ -13,9 +13,13 @@ const formatPrices = (prices) => {
 };
 
 const getPackages = async () => {
-  const packages = await prisma.package.findMany();
+  const packages = await prisma.package.findMany({
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
   
-  // Fetch and format prices for each package
+  // Fetch prices for each package from Stripe
   const packagesWithPrices = await Promise.all(
     packages.map(async (pkg) => {
       const prices = await stripe.prices.list({
@@ -23,9 +27,11 @@ const getPackages = async () => {
         active: true
       });
       
+      const formattedPrices = formatPrices(prices);
+      
       return {
         ...pkg,
-        prices: formatPrices(prices)
+        prices: formattedPrices
       };
     })
   );
@@ -34,23 +40,50 @@ const getPackages = async () => {
 };
 
 const createPackage = async (packageData) => {
-  const { name, description, price, stripeProductId } = packageData;
+  const { name, description, basePrice, stripeProductId, image } = packageData;
   
-  const package = await prisma.package.create({
+  // Validate stripe product ID exists
+  try {
+    await stripe.products.retrieve(stripeProductId);
+  } catch (error) {
+    throw new AppError('Invalid Stripe Product ID', 400);
+  }
+  
+  // Create package in database
+  const newPackage = await prisma.package.create({
     data: {
       name,
       description,
-      price,
-      stripeProductId
+      basePrice: parseFloat(basePrice),
+      stripeProductId,
+      image
     }
   });
   
-  return package;
+  return newPackage;
 };
 
-// ... other service methods
+const getPackageById = async (id) => {  
+  const package = await prisma.package.findUnique({
+    where: { id }
+  });
+  // fetch prices for the package from stripe
+  const prices = await stripe.prices.list({
+    product: package.stripeProductId,
+    active: true
+  });
+  const formattedPrices = formatPrices(prices);
+  package.prices = formattedPrices;
+
+  return {
+    ...package,
+    prices: formattedPrices
+  };
+};
+
 
 module.exports = {
   getPackages,
-  createPackage
+  createPackage,
+  getPackageById
 }; 

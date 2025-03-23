@@ -6,7 +6,7 @@ const { RoleEnum } = require('@prisma/client');
 const router = express.Router();
 
 // Public routes (guest checkout)
-router.post('/', OrderController.createOrder);
+router.post('/',auth(), OrderController.createOrder);
 router.post('/:orderId/payment', OrderController.processPayment);
 
 // Protected routes (require authentication)
