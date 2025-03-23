@@ -33,6 +33,19 @@ const getUserSubscriptions = catchAsync(async (req, res) => {
   });
 });
 
+
+const getAllSubscriptions = catchAsync(async (req, res) => {
+  const result = await subscriptionService.getAllSubscriptions(req.query);
+  
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: 'Subscriptions retrieved successfully',
+    meta: result.meta,
+    data: result.data
+  });
+});
+
 const getTodayDeliveries = catchAsync(async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const result = await subscriptionService.getSubscriptionsByDeliveryDate(today);
@@ -122,5 +135,6 @@ module.exports = {
   getUpcomingDeliveries,
   pauseSubscriptionController,
   resumeSubscriptionController,
-  cancelSubscriptionController
+  cancelSubscriptionController,
+  getAllSubscriptions
 }; 

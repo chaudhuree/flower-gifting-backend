@@ -56,127 +56,6 @@ cron.schedule('0 0 * * *', async () => { // Runs daily at midnight
   }
 });
 
-// Webhook handlers for different subscription events
-const handleSubscriptionEvents = async (event) => {
-  const subscription = event.data.object;
-  
-  switch (event.type) {
-    case 'invoice.payment_succeeded':
-      await handlePaymentSucceeded(subscription);
-      break;
-    case 'invoice.payment_failed':
-      await handlePaymentFailed(subscription);
-      break;
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(subscription);
-      break;
-    case 'payment_method.detached':
-      await handlePaymentMethodDetached(subscription);
-      break;
-  }
-};
-
-const handlePaymentSucceeded = async (invoice) => {
-  if (!invoice.subscription) return; // Only handle subscription payments
-
-  await prisma.subscription.update({
-    where: {
-      stripeSubscriptionId: invoice.subscription
-    },
-    data: {
-      status: 'ACTIVE',
-      nextPaymentDate: new Date(invoice.next_payment_attempt * 1000)
-    }
-  });
-};
-
-const handlePaymentFailed = async (invoice) => {
-  if (!invoice.subscription) return;
-
-  const subscription = await prisma.subscription.findUnique({
-    where: {
-      stripeSubscriptionId: invoice.subscription
-    }
-  });
-
-  if (!subscription) return;
-
-  // Update subscription status based on payment attempt count
-  const status = invoice.attempt_count >= 3 ? 'CANCELLED' : 'PAYMENT_FAILED';
-  
-  await prisma.subscription.update({
-    where: {
-      stripeSubscriptionId: invoice.subscription
-    },
-    data: {
-      status,
-      nextPaymentDate: invoice.next_payment_attempt 
-        ? new Date(invoice.next_payment_attempt * 1000)
-        : null,
-      nextDeliveryDate: status === 'CANCELLED' ? null : subscription.nextDeliveryDate
-    }
-  });
-};
-
-const handleSubscriptionUpdated = async (subscription) => {
-  const updateData = {
-    nextPaymentDate: new Date(subscription.current_period_end * 1000)
-  };
-
-  // Handle different subscription statuses
-  switch (subscription.status) {
-    case 'active':
-      updateData.status = 'ACTIVE';
-      break;
-    case 'past_due':
-      updateData.status = 'PAYMENT_FAILED';
-      break;
-    case 'canceled':
-      updateData.status = 'CANCELLED';
-      updateData.nextDeliveryDate = null;
-      break;
-    case 'unpaid':
-      updateData.status = 'PAYMENT_FAILED';
-      break;
-  }
-
-  await prisma.subscription.update({
-    where: {
-      stripeSubscriptionId: subscription.id
-    },
-    data: updateData
-  });
-};
-
-const handlePaymentMethodDetached = async (paymentMethod) => {
-  // Find subscriptions using this payment method
-  const subscriptions = await prisma.subscription.findMany({
-    where: {
-      status: 'ACTIVE'
-    },
-    include: {
-      user: true
-    }
-  });
-
-  for (const subscription of subscriptions) {
-    const stripeSubscription = await stripe.subscriptions.retrieve(
-      subscription.stripeSubscriptionId
-    );
-
-    if (stripeSubscription.default_payment_method === paymentMethod.id) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: 'PAYMENT_FAILED'
-        }
-      });
-
-      // Here you might want to notify the user that their payment method is invalid
-      // Implementation of notification system would go here
-    }
-  }
-};
 
 const createSubscription = async (userId, subscriptionData) => {
   if (!userId) {
@@ -298,6 +177,76 @@ const getUserSubscriptions = async (userId) => {
   });
 
   return subscriptions;
+};
+
+const getAllSubscriptions = async (query) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  } = query;
+
+  // Calculate skip value for pagination
+  const skip = (Number(page) - 1) * Number(limit);
+
+  // Build where condition
+  const whereCondition = {};
+  if (status) {
+    whereCondition.status = status;
+  }
+
+  // Build orderBy condition
+  const orderBy = {};
+  orderBy[sortBy] = sortOrder;
+
+  // Get total count for pagination
+  const total = await prisma.subscription.count({
+    where: whereCondition
+  });
+
+  // Get paginated data
+  const subscriptions = await prisma.subscription.findMany({
+    where: whereCondition,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      package: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          basePrice: true
+        }
+      }
+    },
+    orderBy,
+    skip,
+    take: Number(limit)
+  });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(total / Number(limit));
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
+
+  return {
+    data: subscriptions,
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages,
+      hasNextPage,
+      hasPreviousPage
+    }
+  };
 };
 
 const getSubscriptionsByDeliveryDate = async (date) => {
@@ -507,7 +456,7 @@ module.exports = {
   pauseSubscription,
   resumeSubscription,
   cancelSubscription,
-  handleSubscriptionEvents
+  getAllSubscriptions
 }; 
 
 

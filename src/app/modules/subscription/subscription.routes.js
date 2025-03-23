@@ -9,7 +9,8 @@ const {
   getUpcomingDeliveries,
   pauseSubscriptionController,
   resumeSubscriptionController,
-  cancelSubscriptionController
+  cancelSubscriptionController,
+  getAllSubscriptions
 } = require('./subscription.controller');
 
 const router = express.Router();
@@ -26,10 +27,17 @@ router.get(
   getUserSubscriptions
 );
 
+// get all subscriptions for admin with filters and pagination
+router.get(
+  '/all-subscriptions',
+  auth(RoleEnum.ADMIN),
+  getAllSubscriptions
+);
+
 // Subscription management routes
-router.post('/:subscriptionId/pause', auth(RoleEnum.ADMIN), pauseSubscriptionController);
+router.post('/:subscriptionId/pause', auth(), pauseSubscriptionController);
 router.post('/:subscriptionId/resume', auth(), resumeSubscriptionController);
-router.post('/:subscriptionId/cancel', auth(RoleEnum.ADMIN), cancelSubscriptionController);
+router.post('/:subscriptionId/cancel', auth(), cancelSubscriptionController);
 
 // New delivery routes (admin only)
 router.get('/deliveries/today', auth(RoleEnum.ADMIN), getTodayDeliveries);
