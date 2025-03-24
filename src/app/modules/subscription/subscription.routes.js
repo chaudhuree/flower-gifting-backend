@@ -17,13 +17,13 @@ const router = express.Router();
 
 router.post(
   '/create',
-  auth(RoleEnum.ADMIN),
+  auth(),
   createSubscription
 );
 
 router.get(
   '/my-subscriptions',
-  auth(RoleEnum.ADMIN),
+  auth(),
   getUserSubscriptions
 );
 
