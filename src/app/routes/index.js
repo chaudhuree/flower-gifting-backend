@@ -10,6 +10,7 @@ const packageRoutes = require('../modules/package/package.routes');
 const subscriptionRoutes = require('../modules/subscription/subscription.routes');
 const paymentRoutes = require('../modules/payment/payment.routes');
 const webhookRoutes = require('./webhook.routes');
+const contactRoutes = require('../modules/contact/contact.routes');
 
 const modulesRoutes = [
     {
@@ -43,6 +44,10 @@ const modulesRoutes = [
     {
         path: '/payments',
         route: paymentRoutes
+    },
+    {
+        path: '/contacts',
+        route: contactRoutes
     }
 ]
 
