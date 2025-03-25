@@ -81,7 +81,7 @@ const loginUser = async (loginData) => {
     throw new AppError('Invalid credentials', 401);
   }
 
-  const token = createToken({ userId: user.id });
+  const token = createToken({ userId: user.id, role: user.role });
 
   return {
     token,
