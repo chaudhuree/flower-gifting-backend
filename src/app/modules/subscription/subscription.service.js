@@ -2,10 +2,12 @@ const prisma = require('../../utils/prisma');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const AppError = require('../../errors/AppError');
 const cron = require('node-cron');
+const { createSubscriptionOrder } = require('../subscriptionOrder/subscriptionOrder.service');
 
-const calculateNextDeliveryDate = (baseDate, frequency) => {
-  const date = new Date(baseDate);
-  switch(frequency) {
+const calculateNextDeliveryDate = (currentDate, frequency) => {
+  const date = new Date(currentDate);
+  
+  switch (frequency.toLowerCase()) {
     case 'weekly':
       date.setDate(date.getDate() + 7);
       break;
@@ -19,43 +21,90 @@ const calculateNextDeliveryDate = (baseDate, frequency) => {
       date.setFullYear(date.getFullYear() + 1);
       break;
     default:
-      throw new AppError('Invalid frequency', 400);
+      throw new Error('Invalid frequency');
   }
+  
   return date;
 };
 
-// Cron job to update next delivery dates
+// Helper function to check if order already exists
+const checkExistingOrder = async (subscriptionId, deliveryDate) => {
+  const startOfDay = new Date(deliveryDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  const endOfDay = new Date(deliveryDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const existingOrder = await prisma.subscriptionOrder.findFirst({
+    where: {
+      subscriptionId,
+      deliveryDate: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    }
+  });
+
+  return existingOrder;
+};
+
+// Updated cron job
 cron.schedule('0 0 * * *', async () => { // Runs daily at midnight
   try {
-    // Get all active subscriptions
+    // Get all active subscriptions that need delivery
     const activeSubscriptions = await prisma.subscription.findMany({
       where: {
         status: 'ACTIVE',
         nextDeliveryDate: {
-          lte: new Date() // Only update if current delivery date has passed
+          lte: new Date(), // Only update if current delivery date has passed
+          not: null // Ensure nextDeliveryDate exists
         }
       }
     });
 
-    console.log(`Updating delivery dates for ${activeSubscriptions.length} subscriptions`);
+    console.log(`Checking ${activeSubscriptions.length} subscriptions for delivery`);
 
-    // Update next delivery dates
     for (const subscription of activeSubscriptions) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          nextDeliveryDate: calculateNextDeliveryDate(
-            subscription.nextDeliveryDate,
-            subscription.frequency
-          )
+      try {
+        // Check if order already exists for this delivery date
+        const existingOrder = await checkExistingOrder(
+          subscription.id,
+          subscription.nextDeliveryDate
+        );
+
+        if (!existingOrder) {
+          // Only create order if one doesn't exist
+          await createSubscriptionOrder(
+            subscription.id,
+            subscription.nextDeliveryDate
+          );
+          console.log(`Created new order for subscription: ${subscription.id}`);
+        } else {
+          console.log(`Order already exists for subscription: ${subscription.id} on ${subscription.nextDeliveryDate}`);
         }
-      });
+
+        // Calculate and update next delivery date
+        const nextDate = calculateNextDeliveryDate(
+          subscription.nextDeliveryDate,
+          subscription.frequency
+        );
+
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { nextDeliveryDate: nextDate }
+        });
+        
+        console.log(`Updated next delivery date to ${nextDate} for subscription: ${subscription.id}`);
+      } catch (error) {
+        console.error(`Error processing subscription ${subscription.id}:`, error);
+        // Continue with next subscription even if one fails
+        continue;
+      }
     }
   } catch (error) {
     console.error('Delivery date update cron job error:', error);
   }
 });
-
 
 const createSubscription = async (userId, subscriptionData) => {
   if (!userId) {
@@ -143,10 +192,14 @@ const createSubscription = async (userId, subscriptionData) => {
         frequency: price.recurring.interval
       }
     });
-
+    const subscriptionOrder = await createSubscriptionOrder(
+      dbSubscription.id,
+      dbSubscription.nextDeliveryDate
+    );
     return {
       subscription: dbSubscription,
-      clientSecret: subscription.latest_invoice.payment_intent.client_secret
+      subscriptionOrder,
+      // clientSecret: subscription.latest_invoice.payment_intent.client_secret
     };
   } catch (error) {
     // Clean up if something fails

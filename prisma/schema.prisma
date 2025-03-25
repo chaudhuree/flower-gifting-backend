@@ -62,6 +62,13 @@ model Package {
   @@map("packages")
 }
 
+enum SubscriptionOrderStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+}
+
 model Subscription {
   id                  String            @id @default(auto()) @map("_id") @db.ObjectId
   status              SubscriptionStatus @default(PENDING)
@@ -97,12 +104,36 @@ model Subscription {
   
   packageId           String           @db.ObjectId
   package             Package          @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+   orders            SubscriptionOrder[]
   
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
   @@map("subscriptions")
 }
+
+model SubscriptionOrder {
+  id                String                @id @default(auto()) @map("_id") @db.ObjectId
+  status            SubscriptionOrderStatus @default(PENDING)
+  deliveryDate      DateTime
+  deliveryLocation  String
+  receiverName      String
+  receiverPhone     String
+  deliveryNotes     String?
+  anonymous         Boolean               @default(false)
+  failureReason     String?
+  
+  // Relations
+  subscriptionId    String               @db.ObjectId
+  subscription      Subscription         @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@map("subscription_orders")
+}
+
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   name        String

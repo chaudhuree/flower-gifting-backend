@@ -11,6 +11,7 @@ const subscriptionRoutes = require('../modules/subscription/subscription.routes'
 const paymentRoutes = require('../modules/payment/payment.routes');
 const webhookRoutes = require('./webhook.routes');
 const contactRoutes = require('../modules/contact/contact.routes');
+const subscriptionOrderRoutes = require('../modules/subscriptionOrder/subscriptionOrder.routes');
 
 const modulesRoutes = [
     {
@@ -48,6 +49,10 @@ const modulesRoutes = [
     {
         path: '/contacts',
         route: contactRoutes
+    },
+    {
+        path: '/subscription-orders',
+        route: subscriptionOrderRoutes
     }
 ]
 
